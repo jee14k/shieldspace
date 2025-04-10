@@ -1,0 +1,48 @@
+name: Auto Deploy to Droplet
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_KEY }}
+
+      - name: Deploy and Restart Services
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }} << 'EOF'
+            set -e
+
+            echo "📥 Pulling latest code..."
+            cd /shieldspace
+            git pull origin main
+
+            echo "🔧 Updating NestJS..."
+            cd backend
+            npm install
+            npm run build
+            pm2 restart nextjs
+
+            echo "🐍 Updating FastAPI..."
+            cd ../backend
+            source venv/bin/activate
+            pip install -r requirements.txt
+
+            # Optional: If you have migrations or model building
+            # python scripts/build_model.py
+            # alembic upgrade head
+
+            pm2 restart fastapi
+
+            echo "✅ Deployment finished!"
+          EOF
