@@ -1,0 +1,52 @@
+<!-- templates/index_gpt.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cyberbullying Quiz</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script>
+    function showFeedback(questionId, choiceIndex) {
+        // Hide all feedbacks for that question
+        const feedbacks = document.querySelectorAll(`.feedback-${questionId}`);
+        feedbacks.forEach(fb => fb.style.display = 'none');
+        
+        // Show only the selected feedback
+        const feedback = document.getElementById(`feedback-${questionId}-${choiceIndex}`);
+        if (feedback) {
+            feedback.style.display = 'block';
+        }
+    }
+    </script>
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+    <h1 class="mb-4 text-center">🚀 Cyberbullying Awareness Quiz</h1>
+    <form action="/submit" method="post">
+        {% for question in questions %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>Question {{ loop.index }}:</strong> {{ question.scenario }}
+            </div>
+            <div class="card-body">
+                {% for choice in question.choices %}
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="{{ question.id }}" id="{{ question.id }}-{{ loop.index }}" value="{{ choice.text }}" onclick="showFeedback({{ question.id }}, {{ loop.index }})" required>
+                    <label class="form-check-label" for="{{ question.id }}-{{ loop.index }}">
+                        {{ choice.text }}
+                    </label>
+                    <div id="feedback-{{ question.id }}-{{ loop.index }}" class="text-muted small mt-1 feedback-{{ question.id }}" style="display: none;">
+                        {{ choice.feedback }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg">Submit Answers</button>
+        </div>
+    </form>
+</div>
+</body>
+</html>
