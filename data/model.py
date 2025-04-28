@@ -130,34 +130,33 @@ def display_analysis(message):
 
 
 
-
+#!/usr/bin/env python
 """
-Full‑stack message analyser
+Full-stack message analyser
 ───────────────────────────
-• Emotions                 (SamLowe/roberta‑base‑go_emotions)
-• General toxicity         (unitary/toxic‑bert)
-• Sexism / Racism detector (jkos0012/sexism_racism_bert_model   – weights in .pth)
+• Emotions                 (SamLowe/roberta-base-go_emotions)
+• General toxicity         (unitary/toxic-bert)
+• Cyber-bullying detector  (jkos0012/bert-cyberbullying – .pth weights)
 """
 
-
-# !pip install -qU transformers huggingface_hub torch safetensors nltk
-
-# ── 1. Imports ───────────────────────────────────────────────────
-import textwrap, nltk, torch
+import textwrap, torch
 from huggingface_hub import hf_hub_download
 from transformers import (
     pipeline,
     AutoTokenizer,
-    AutoConfig,
-    AutoModelForSequenceClassification,
+    BertConfig,
+    BertForSequenceClassification,
     TextClassificationPipeline,
 )
 
-# NLTK data (only if you really need punkt/vader later)
+# ───────────────────────────────────────────────────────────────
+# 1.  Optional: NLTK data (uncomment only if you really need it)
+# import nltk
 # nltk.download("punkt")
 # nltk.download("vader_lexicon")
+# ───────────────────────────────────────────────────────────────
 
-# ── 2. Emotion & general‑toxicity pipelines (unchanged) ─────────
+# 2.  Emotion & general-toxicity classifiers (unchanged)
 emotion_classifier = pipeline(
     "text-classification",
     model="SamLowe/roberta-base-go_emotions",
@@ -172,39 +171,42 @@ toxicity_classifier = pipeline(
     truncation=True,
 )
 
-# ── 3. Sexism / Racism detector built from raw .pth  ────────────
-REPO_ID      = "jkos0012/sexism_racism_bert_model"
-PT_FILE      = "sexism_racism_bert_model.pth"
-TOKENIZER_ID = "bert-base-uncased"      
-LABELS       = ["sexism", "racism"]     
+# 3.  Cyber-bullying detector built from raw .pth checkpoint
+REPO_ID     = "jkos0012/bert-cyberbullying"   # <— new repo
+PT_FILE     = "bert_cyberbullying.pth"        # file inside repo
+BASE_MODEL  = "bert-base-uncased"             # backbone
 
-# 3‑A  download the .pth checkpoint once and load it
+# 3-A  download & load the checkpoint
 ckpt_path  = hf_hub_download(REPO_ID, filename=PT_FILE)
 state_dict = torch.load(ckpt_path, map_location="cpu")
 
-# 3‑B  build a compatible BERT config with num_labels=2
-config = AutoConfig.from_pretrained(
-    TOKENIZER_ID,
-    num_labels=len(LABELS),
-    id2label=dict(enumerate(LABELS)),
-    label2id={l: i for i, l in enumerate(LABELS)},
+# 3-B  infer output-layer size (e.g. 2 × 768)
+num_labels = state_dict["classifier.weight"].shape[0]
+
+# 3-C  give the two output neurons real names
+LABELS = ["religion", "age"]          # index 0 → age, index 1 → religion
+id2label = dict(enumerate(LABELS))
+label2id = {v: k for k, v in id2label.items()}
+
+# 3-D  build a compatible BERT config & model
+config = BertConfig.from_pretrained(
+    BASE_MODEL,
+    num_labels=num_labels,
+    id2label=id2label,
+    label2id=label2id,
 )
+cyber_model = BertForSequenceClassification(config)
+cyber_model.load_state_dict(state_dict, strict=True)   # <— no more size-mismatch!
 
-# 3‑C  recreate the classification model and load weights
-bias_model = AutoModelForSequenceClassification.from_config(config)
-missing, unexpected = bias_model.load_state_dict(state_dict, strict=False)
-assert not missing,  f"Missing weights! {missing}"
-assert not unexpected,f"Unexpected keys! {unexpected}"
-
-# 3‑D  wrap in a normal pipeline (sigmoid = multi‑label)
-bias_classifier = TextClassificationPipeline(
-    model=bias_model,
-    tokenizer=AutoTokenizer.from_pretrained(TOKENIZER_ID),
-    function_to_apply="sigmoid",
+# 3-E  wrap in a normal HF pipeline
+cyberbullying_classifier = TextClassificationPipeline(
+    model=cyber_model,
+    tokenizer=AutoTokenizer.from_pretrained(BASE_MODEL),
+    function_to_apply="sigmoid",   # multi-label
     top_k=None,
 )
 
-# ── 4. Helper functions ─────────────────────────────────────────
+# 4.  Helper functions
 def get_top5_emotions(text: str) -> dict:
     res = emotion_classifier(text)[0]
     res.sort(key=lambda x: x["score"], reverse=True)
@@ -213,14 +215,14 @@ def get_top5_emotions(text: str) -> dict:
 def get_toxicity_scores(text: str) -> dict:
     return {r["label"]: r["score"] for r in toxicity_classifier(text)[0]}
 
-def get_bias_scores(text: str) -> dict:
-    return {r["label"]: r["score"] for r in bias_classifier(text)[0]}
+def get_cyber_scores(text: str) -> dict:
+    return {r["label"]: r["score"] for r in cyberbullying_classifier(text)[0]}
 
-# ── 5. Display logic  ───────────────────────────────────────────
+# 5.  Pretty console output
 def display_analysis(message: str) -> None:
     emotions = get_top5_emotions(message)
     toxicity = get_toxicity_scores(message)
-    bias     = get_bias_scores(message)
+    cyber    = get_cyber_scores(message)
 
     primary_emotion = max(emotions, key=emotions.get)
     toxic_level     = toxicity.get("toxic", 0.0)
@@ -241,22 +243,22 @@ def display_analysis(message: str) -> None:
     print("\n" + "─" * 80)
     print(textwrap.fill(message, 80))
 
-    print("\n💡 Emotion Analysis (Top 5)")
+    print("\n💡 Emotion Analysis (Top 5)")
     for lbl, sc in emotions.items():
-        print(f"  {lbl:<14}{sc:6.3f}")
+        print(f"  {lbl:<18}{sc:6.3f}")
     print(f"🧠 Primary Emotion: {primary_emotion}")
 
     print("\n⚠️  General Toxicity")
     print(f"  Level: {friendly}")
     print(f"  Tags : {tag_str}")
 
-    print("\n🚨  Sexism / Racism Scores")
-    for lbl, sc in bias.items():
-        print(f"  {lbl:<6}{sc:6.3f}")
+    print("\n🚨  Cyber-bullying Scores")
+    for lbl, sc in cyber.items():
+        print(f"  {lbl:<18}{sc:6.3f}")
 
     print("─" * 80 + "\n")
 
-# ── 6. Simple CLI loop ─────────────────────────────────────────
+# 6.  Simple CLI loop
 def main():
     print("Type a message (or 'quit'):\n")
     while True:
