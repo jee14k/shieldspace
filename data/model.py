@@ -102,7 +102,7 @@ bias_classifier = TextClassificationPipeline(
 def get_cyber_scores(text: str) -> dict:
     cyber_scores = {}
     for r in cyberbullying_classifier(text)[0]:
-        if r["score"] > 0.94:
+        if r["score"] >= 0.94:
             cyber_scores[r["label"]] = r["score"]
     return cyber_scores
 
@@ -110,7 +110,7 @@ def get_cyber_scores(text: str) -> dict:
 def get_bias_scores(text: str) -> dict:
     bias_scores = {}
     for r in bias_classifier(text)[0]:
-        if r["score"] > 0.94:
+        if r["score"] >= 0.94:
             bias_scores[r["label"]] = r["score"]
     return bias_scores
 

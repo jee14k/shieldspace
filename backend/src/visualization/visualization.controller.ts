@@ -12,7 +12,6 @@ export class VisualizationController {
 
   @Get('visualization')
   async getAllData(): Promise<VisualizationResponse[]> {
-    console.log('getAllData');
     return this.visualizationService.getBullyingCount();
   }
 }
