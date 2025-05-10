@@ -1,0 +1,35 @@
+[
+    {
+        "id": 1,
+        "scenario": "You see someone posting mean comments about your classmate online. What should you do?",
+        "choices": [
+            {"text": "Join in and comment", "feedback": "Joining in encourages bullying and makes it worse."},
+            {"text": "Ignore it", "feedback": "Ignoring may stop it for you, but it doesn't help your classmate."},
+            {"text": "Report it and support your classmate", "feedback": "Best choice! You help stop the bullying and support your classmate."},
+            {"text": "Share it with more people", "feedback": "Sharing it makes the bullying spread and causes more harm."}
+        ],
+        "answer": "Report it and support your classmate"
+    },
+    {
+        "id": 2,
+        "scenario": "A friend sends you a funny meme about another student that could hurt their feelings. What do you do?",
+        "choices": [
+            {"text": "Laugh and share it", "feedback": "Laughing and sharing can hurt the student more."},
+            {"text": "Tell your friend it's not kind", "feedback": "Correct! You help your friend understand why it's wrong."},
+            {"text": "Ignore it", "feedback": "Ignoring allows harmful behavior to continue."},
+            {"text": "Post it on your story", "feedback": "Posting it spreads the harm and makes it public."}
+        ],
+        "answer": "Tell your friend it's not kind"
+    },
+    {
+        "id": 3,
+        "scenario": "Someone you don't know sends you a rude message. What is the best action?",
+        "choices": [
+            {"text": "Reply with a rude message", "feedback": "Responding fuels the conflict and can escalate things."},
+            {"text": "Block and report them", "feedback": "Correct! Block and report to stop them from contacting you."},
+            {"text": "Post the message to embarrass them", "feedback": "Posting back keeps the negativity going."},
+            {"text": "Ignore and delete it", "feedback": "Ignoring helps you avoid engaging but reporting is better."}
+        ],
+        "answer": "Block and report them"
+    }
+]
