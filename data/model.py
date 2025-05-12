@@ -288,6 +288,13 @@ if __name__ == "__main__":
 
 
 
+# 
+
+
+
+
+
+
 
 
 # Install required packages
@@ -351,6 +358,29 @@ def get_toxicity_scores(text):
 def get_cyber_scores(text):
     return {r["label"]: r["score"] for r in cyberbullying_classifier(text)[0]}
 
+def detect_trigger_words(text, threshold=0.5):
+    words = [w for w in text.split() if w.isalpha()]
+    toxic_triggers = []
+    emotion_triggers = []
+
+    for word in words:
+        # Toxicity trigger detection
+        toxic_result = toxicity_classifier(word)[0]
+        toxic_score = next((r["score"] for r in toxic_result if r["label"] == "toxic"), 0)
+        if toxic_score > threshold:
+            toxic_triggers.append((word, toxic_score))
+
+        # Emotion trigger detection
+        emotion_result = emotion_classifier(word)[0]
+        top_emotion = max(emotion_result, key=lambda x: x["score"])
+        if top_emotion["score"] > threshold:
+            emotion_triggers.append((word, top_emotion["label"], top_emotion["score"]))
+
+    return {
+        "toxic_triggers": toxic_triggers,
+        "emotion_triggers": emotion_triggers
+    }
+
 def display_analysis(message):
     emotions = get_top5_emotions(message)
     toxicity = get_toxicity_scores(message)
@@ -387,9 +417,30 @@ def display_analysis(message):
     print("\n🚨  Cyber-bullying Scores")
     for lbl, sc in cyber.items():
         print(f"  {lbl:<18}{sc:6.3f}")
+
+    # Trigger Word Output
+    triggers = detect_trigger_words(message)
+    toxic_trigs = triggers["toxic_triggers"]
+    emotion_trigs = triggers["emotion_triggers"]
+
+    print("\n🔎 Trigger Words:")
+    if toxic_trigs:
+        print("  ⚠️ Toxicity Triggers:")
+        for word, score in toxic_trigs:
+            print(f"    - {word} (score: {score:.2f})")
+    else:
+        print("  ✅ No strong toxicity trigger words detected.")
+
+    if emotion_trigs:
+        print("  💬 Emotional Triggers:")
+        for word, label, score in emotion_trigs:
+            print(f"    - {word} → {label} (score: {score:.2f})")
+    else:
+        print("  ✅ No strong emotion trigger words detected.")
+
     print("─" * 80 + "\n")
 
-# User choice
+# User choice interface
 print("What would you like to do?")
 print("1️⃣  Upload an image containing text")
 print("2️⃣  Enter your own text comment")
