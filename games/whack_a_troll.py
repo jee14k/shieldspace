@@ -7,7 +7,7 @@ import pandas as pd
 pygame.init()
 
 # Load the dataset (replace with the correct path to your dataset)
-df = pd.read_csv('twitter_cleaned_dataset.csv')
+df = pd.read_csv('./cleaned/twitter_cleaned_dataset.csv')
 
 # Function to classify a tweet as a troll based on sentiment or keywords
 def is_troll(tweet):

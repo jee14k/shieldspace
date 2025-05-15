@@ -3,7 +3,7 @@ import pandas as pd
 import random
 
 # Load dataset
-df = pd.read_csv("twitter_cleaned_dataset.csv")  # Ensure this file is in the same directory
+df = pd.read_csv("./cleaned/twitter_cleaned_dataset.csv")  # Ensure this file is in the same directory
 df_filtered = df.dropna(subset=["cleaned_text"])  # Remove missing text entries
 
 # Extract relevant data (tweet text and labels)

@@ -2,7 +2,7 @@ import pygame
 import random
 import pandas as pd
 
-twitter_data = pd.read_csv("twitter_cleaned_dataset.csv")
+twitter_data = pd.read_csv("./cleaned/twitter_cleaned_dataset.csv")
 
 # Initialize pygame
 pygame.init()
