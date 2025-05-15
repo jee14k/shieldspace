@@ -469,3 +469,195 @@ elif choice == "2":
         print("⚠️ Empty message entered.")
 else:
     print("❌ Invalid choice. Please enter 1 or 2.")
+
+
+
+
+
+
+
+
+
+
+
+
+#####################################final draft of model for itr -3
+    
+
+
+#!/usr/bin/env python
+"""
+Full-stack message analyser with trigger phrase detection
+────────────────────────────────────────────────────────
+• Emotions                 (SamLowe/roberta-base-go_emotions)
+• General toxicity         (unitary/toxic-bert)
+• Cyber-bullying detector  (jkos0012/bert-cyberbullying – .pth weights)
+"""
+
+import textwrap, torch
+from huggingface_hub import hf_hub_download
+from transformers import (
+    pipeline,
+    AutoTokenizer,
+    BertConfig,
+    BertForSequenceClassification,
+    TextClassificationPipeline,
+)
+
+# ───────────────────────────────
+# Load emotion and toxicity models
+emotion_classifier = pipeline("text-classification", model="SamLowe/roberta-base-go_emotions", top_k=None)
+toxicity_classifier = pipeline("text-classification", model="unitary/toxic-bert", top_k=None)
+
+# ───────────────────────────────
+# Load cyberbullying model from .pth
+REPO_ID = "jkos0012/bert-cyberbullying"
+PT_FILE = "bert_cyberbullying.pth"
+BASE_MODEL = "bert-base-uncased"
+ckpt_path = hf_hub_download(REPO_ID, filename=PT_FILE)
+state_dict = torch.load(ckpt_path, map_location="cpu")
+
+num_labels = state_dict["classifier.weight"].shape[0]
+LABELS = ["religion", "age"]
+id2label = dict(enumerate(LABELS))
+label2id = {v: k for k, v in id2label.items()}
+
+config = BertConfig.from_pretrained(BASE_MODEL, num_labels=num_labels, id2label=id2label, label2id=label2id)
+cyber_model = BertForSequenceClassification(config)
+cyber_model.load_state_dict(state_dict, strict=True)
+
+cyberbullying_classifier = TextClassificationPipeline(
+    model=cyber_model,
+    tokenizer=AutoTokenizer.from_pretrained(BASE_MODEL),
+    function_to_apply="sigmoid",
+    top_k=None,
+)
+
+# ───────────────────────────────
+# Helper functions
+
+def get_top5_emotions(text: str) -> dict:
+    res = emotion_classifier(text)[0]
+    res.sort(key=lambda x: x["score"], reverse=True)
+    return {r["label"]: r["score"] for r in res[:5]}
+
+def get_toxicity_scores(text: str) -> dict:
+    return {r["label"]: r["score"] for r in toxicity_classifier(text)[0]}
+
+def get_cyber_scores(text: str) -> dict:
+    return {r["label"]: r["score"] for r in cyberbullying_classifier(text)[0]}
+
+def detect_trigger_phrases(text: str, threshold: float = 0.5, ngram_size: int = 2) -> dict:
+    words = [w for w in text.split() if w.isalpha()]
+    phrases = [' '.join(words[i:i + ngram_size]) for i in range(len(words) - ngram_size + 1)]
+
+    toxic_triggers = []
+    emotion_triggers = []
+
+    for phrase in phrases:
+        toxic_result = toxicity_classifier(phrase)[0]
+        toxic_score = next((r["score"] for r in toxic_result if r["label"] == "toxic"), 0)
+        if toxic_score > threshold:
+            toxic_triggers.append((phrase, toxic_score))
+
+        emotion_result = emotion_classifier(phrase)[0]
+        top_emotion = max(emotion_result, key=lambda x: x["score"])
+        if top_emotion["score"] > threshold:
+            emotion_triggers.append((phrase, top_emotion["label"], top_emotion["score"]))
+
+    return {
+        "toxic_triggers": toxic_triggers,
+        "emotion_triggers": emotion_triggers
+    }
+
+# ───────────────────────────────
+def display_analysis(message: str) -> None:
+    emotions = get_top5_emotions(message)
+    toxicity = get_toxicity_scores(message)
+    cyber = get_cyber_scores(message)
+    primary_emotion = max(emotions, key=emotions.get)
+    toxic_level = toxicity.get("toxic", 0.0)
+
+    if toxic_level > 0.85: friendly = "🔥 Highly Toxic"
+    elif toxic_level > 0.50: friendly = "⚠️ Possibly Offensive"
+    elif toxic_level > 0.20: friendly = "🟡 Mildly Risky"
+    else: friendly = "✅ Low or Safe"
+
+    tags = []
+    if toxicity.get("insult", 0) > 0.6: tags.append("🔴 Insult")
+    if toxicity.get("obscene", 0) > 0.6: tags.append("🤬 Obscene")
+    if toxicity.get("severe_toxic", 0) > 0.4: tags.append("🚨 Severe Toxicity")
+    if toxicity.get("identity_hate", 0) > 0.4: tags.append("🛑 Identity Hate")
+    if toxicity.get("threat", 0) > 0.3: tags.append("⚠️ Threat")
+    tag_str = ", ".join(tags) if tags else "No critical flags"
+
+    print("\n" + "─" * 80)
+    print(textwrap.fill(message, 80))
+
+    print("\n💡 Emotion Analysis (Top 5)")
+    for lbl, sc in emotions.items():
+        print(f"  {lbl:<18}{sc:6.3f}")
+    print(f"🧠 Primary Emotion: {primary_emotion}")
+
+    print("\n⚠️  General Toxicity")
+    print(f"  Level: {friendly}")
+    print(f"  Tags : {tag_str}")
+
+    print("\n🚨  Cyberbullying Scores")
+    for lbl, sc in cyber.items():
+        print(f"  {lbl:<18}{sc:6.3f}")
+
+    # ✅ Trigger Phrase Detection (Only if text is flagged)
+    if toxic_level > 0.5 or any(score > 0.5 for score in cyber.values()):
+        triggers = detect_trigger_phrases(message)
+    else:
+        triggers = {"toxic_triggers": [], "emotion_triggers": []}
+
+    # ✅ Filter: show only strong toxic triggers (> 0.75)
+    toxic_trigs = [(p, s) for p, s in triggers["toxic_triggers"] if s > 0.75]
+    emotion_trigs = triggers["emotion_triggers"]
+
+    print("\n🔎 Trigger Phrases:")
+    if toxic_trigs:
+        print("  ⚠️ Toxicity Triggers:")
+        for phrase, score in toxic_trigs:
+            print(f"    - \"{phrase}\" (score: {score:.2f})")
+    else:
+        print("  ✅ No strong toxicity trigger phrases detected.")
+
+    # ✅ Show explanation if message is toxic but has no strong triggers
+    if toxic_level > 0.5 and len(toxic_trigs) == 0:
+        print("\n🧠 Why this still matters:")
+        print("  Although the individual words or short phrases in this message seem neutral,")
+        print("  the overall sentence may still feel hurtful or bullying in certain social situations.")
+        print("  Some expressions are used to dismiss, exclude, or insult — even without 'bad words'.")
+        print("  Always think about how your words might make someone else feel.")
+
+    if emotion_trigs:
+        print("  💬 Emotional Triggers:")
+        for phrase, label, score in emotion_trigs:
+            print(f"    - \"{phrase}\" → {label} (score: {score:.2f})")
+    else:
+        print("  ✅ No strong emotion trigger phrases detected.")
+
+    print("─" * 80 + "\n")
+    
+# ───────────────────────────────
+# Main CLI loop
+
+def main():
+    print("Type a message (or 'quit'):\n")
+    while True:
+        try:
+            msg = input("Message: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            msg = "quit"
+        if msg.lower() == "quit":
+            print("Exiting. Thank you!")
+            break
+        display_analysis(msg)
+
+if __name__ == "__main__":
+    main()
+
+
