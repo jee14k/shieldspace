@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
-import permissionsPolicy from 'permissions-policy';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -11,6 +10,10 @@ async function bootstrap() {
   app.use((req, res, next) => {
     res.removeHeader('X-Powered-By');
     res.removeHeader('Server');
+    res.setHeader(
+      'Permissions-Policy',
+      'camera=(), microphone=(), geolocation=()',
+    );
     next();
   });
 
@@ -22,7 +25,11 @@ async function bootstrap() {
         directives: {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'", 'https://apis.google.com'],
-          styleSrc: ["'self'", 'https://fonts.googleapis.com', "'unsafe-inline'"],
+          styleSrc: [
+            "'self'",
+            'https://fonts.googleapis.com',
+            "'unsafe-inline'",
+          ],
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
           imgSrc: ["'self'", 'data:'],
           objectSrc: ["'none'"],
@@ -30,18 +37,7 @@ async function bootstrap() {
         },
       },
       referrerPolicy: { policy: 'no-referrer' },
-    })
-  );
-
-  // Add Permissions Policy header separately
-  app.use(
-    permissionsPolicy({
-      features: {
-        camera: ['none'],
-        microphone: ['none'],
-        geolocation: ['none'],
-      },
-    })
+    }),
   );
 
   await app.listen(process.env.PORT ?? 3000);
