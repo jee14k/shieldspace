@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Empathy RPG - Intro</title>
+    
+    <!-- Bootstrap CSS (CDN) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #f8f9fa; /* Light gray background */
+        }
+        .container {
+            max-width: 600px;
+            margin-top: 100px;
+        }
+        .btn-start {
+            background-color: #007BFF;
+            color: white;
+            font-size: 1.2rem;
+        }
+        .btn-start:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container text-center">
+        <div class="card shadow-lg p-4">
+            <h1 class="text-primary">Welcome to TweetStorm</h1>
+            <p class="lead">A Cyberbullying Awareness Game!</p>
+            <p>You will step into the shoes of different people involved in online interactions.</p>
+            <p>Your choices will shape the story and reveal the impact of cyberbullying.</p>
+            
+            <a href="{{ url_for('victim_story') }}" class="btn btn-start btn-lg mt-3">Start the Game</a>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS (Optional, only needed if using Bootstrap features like modals) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
